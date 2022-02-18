@@ -16,6 +16,9 @@ from PIL import Image
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 #temp/
+from visualizer import get_local
+
+
 _logger = logging.getLogger(__name__)
 
 
@@ -85,7 +88,7 @@ class Attention(nn.Module):
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
-
+    @get_local('tempX')
     def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
@@ -93,11 +96,14 @@ class Attention(nn.Module):
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
+        #tempX = attn
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        tempX = x
         x = self.proj(x)
         x = self.proj_drop(x)
+        
         return x
 
 
@@ -113,10 +119,11 @@ class Block(nn.Module):
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
-
+    
     def forward(self, x):
         x = x + self.drop_path(self.attn(self.norm1(x)))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
+        tempX = x
         return x
 
 class VisionTransformer(nn.Module):
@@ -228,7 +235,7 @@ class VisionTransformer(nn.Module):
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         if self.num_tokens == 2:
             self.head_dist = nn.Linear(self.embed_dim, self.num_classes) if num_classes > 0 else nn.Identity()
-
+    
     def forward_features(self, x):
         x = self.patch_embed(x)
         cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
@@ -236,6 +243,7 @@ class VisionTransformer(nn.Module):
             x = torch.cat((cls_token, x), dim=1)
         else:
             x = torch.cat((cls_token, self.dist_token.expand(x.shape[0], -1, -1), x), dim=1)
+        #tempX = self.pos_embed
         x = self.pos_drop(x + self.pos_embed)
         x = self.blocks(x)
         x = self.norm(x)
@@ -243,7 +251,8 @@ class VisionTransformer(nn.Module):
             return self.pre_logits(x[:, 0])
         else:
             return x[:, 0], x[:, 1]
-
+    def returnPosEmbedding(self):
+        return self.pos_embed
     def forward(self, x):
         x = self.forward_features(x)
         if self.head_dist is not None:
@@ -302,24 +311,25 @@ def _init_vit_weights(module: nn.Module, name: str = '', head_bias: float = 0., 
 #################################################################
 #################################################################
 
-ViT = VisionTransformer(representation_size = None, patch_size= 16, embed_dim= 768, depth = 12, num_heads= 12)
-#_load_weights(ViT, './ViT.npz')
-#print(len(ViT))
-ViT.load_state_dict(torch.load('./ViT.pth'))
-config = resolve_data_config({}, model=ViT)
-print('config:', config)
-transform = create_transform(**config)
-img = Image.open("./Sample.jpg")
-tensor = transform(img).unsqueeze(0)
-ViT.eval()
-with torch.no_grad():
-    out = ViT(tensor)
-
-probabilities = torch.nn.functional.softmax(out[0], dim=0)
-#torch.save(ViT.state_dict(), './ViT.pth')
-with open("../PredictCategory.txt", 'r') as f:
-    categories = [s.strip() for s in f.readlines()]
-#print(probabilities[:10])
-top5_prob, top5_catid = torch.topk(probabilities, 5)
-for i in range(top5_prob.size(0)):
-    print(categories[top5_catid[i]], top5_prob[i].item())
+#ViT = VisionTransformer(representation_size = None, patch_size= 16, embed_dim= 768, depth = 12, num_heads= 12)
+##_load_weights(ViT, './ViT.npz')
+##print(len(ViT))
+#print(ViT)
+#ViT.load_state_dict(torch.load('./ViT.pth'))
+#config = resolve_data_config({}, model=ViT)
+#print('config:', config)
+#transform = create_transform(**config)
+#img = Image.open("./Sample.jpg")
+#tensor = transform(img).unsqueeze(0)
+#ViT.eval()
+#with torch.no_grad():
+#    out = ViT(tensor)
+#
+#probabilities = torch.nn.functional.softmax(out[0], dim=0)
+##torch.save(ViT.state_dict(), './ViT.pth')
+#with open("../PredictCategory.txt", 'r') as f:
+#    categories = [s.strip() for s in f.readlines()]
+##print(probabilities[:10])
+#top5_prob, top5_catid = torch.topk(probabilities, 5)
+#for i in range(top5_prob.size(0)):
+#    print(categories[top5_catid[i]], top5_prob[i].item())

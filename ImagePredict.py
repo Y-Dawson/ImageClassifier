@@ -19,16 +19,17 @@ def PredictImage(filePath, modelName):
     #print("modelName:", modelName)
     
     model = timm.create_model(modelName, pretrained = True)
-    print(model)
+    #print(model)
     PrintParas(model)
     config = resolve_data_config({}, model=model)
+    print('transform config:', config)
     transform = create_transform(**config)
     img = Image.open(filePath).convert('RGB')
     tensor = transform(img).unsqueeze(0)
     model.eval()
     with torch.no_grad():
         out = model(tensor)
-    print(out.shape)
+    #print(out.shape)
     probabilities = torch.nn.functional.softmax(out[0], dim=0)
     with open("./PredictCategory.txt", 'r') as f:
         categories = [s.strip() for s in f.readlines()]
@@ -39,8 +40,8 @@ def PredictImage(filePath, modelName):
         print(categories[top5_catid[i]], top5_prob[i].item())
     return
 
-#PredictImage("C:\\Users\\Dawson\\Desktop\\1.jpg", "resnet18")
+PredictImage("C:\\Users\\Dawson\\Desktop\\1.jpg", "resnet18")
 
 #PredictImage("C:\\Users\\Dawson\\Desktop\\1.jpg", "vit_base_patch16_224")
 
-PredictImage("C:\\Users\\Dawson\\Desktop\\1.jpg", "resmlp_12_224")
+#PredictImage("C:\\Users\\Dawson\\Desktop\\1.jpg", "resmlp_12_224")
