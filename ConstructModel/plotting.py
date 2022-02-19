@@ -4,7 +4,8 @@ from scipy import interpolate
 import matplotlib.colors as mcolors
 from matplotlib.patches import Ellipse, Rectangle
 import itertools
-
+import ViT
+import torch
 
 def plot_grid_query_pix(width, ax=None):
     if ax is None:
@@ -106,3 +107,8 @@ def plot_attention_positions_all_layers(model, width, tensorboard_writer=None, g
         if tensorboard_writer:
             tensorboard_writer.add_figure(f"attention/layer{layer_idx}", fig, global_step=global_step)
         plt.close(fig)
+
+
+ViT = VisionTransformer(representation_size = None, patch_size= 16, embed_dim= 768, depth = 12, num_heads= 12)
+ViT.load_state_dict(torch.load('./ViT.pth'))
+plot_attention_layer(ViT, 1, )
